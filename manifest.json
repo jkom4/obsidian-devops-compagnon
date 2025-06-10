@@ -1,0 +1,10 @@
+{
+	"id": "devops-compagnon",
+	"name": "Devops Compagnon",
+	"version": "0.10.0",
+	"minAppVersion": "1.5.8",
+	"description": "Document infrastructure as clearly as you build it.",
+	"author": "Jobelin Kom",
+	"authorUrl": "https://github.com/jkom4",
+	"isDesktopOnly": false
+}
