@@ -119,7 +119,7 @@ export class DevOpsSettingsTab extends PluginSettingTab {
 			if (files.length === 0) return;
 
 			const targetFolder = normalizePath("DevOpsImports");
-			const folder = this.app.vault.getAbstractFileByPath(targetFolder) as TFolder;
+			const folder = this.app.vault.getAbstractFileByPath(targetFolder) instanceof TFolder;
 
 			if (!folder) {
 				await this.app.vault.createFolder(targetFolder);

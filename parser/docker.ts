@@ -24,12 +24,13 @@ export class DockerParser {
 			} else {
 				for (const [serviceName, serviceDef] of Object.entries(data.services)) {
 					markdown += `## Service: \`${serviceName}\`\n`;
-					markdown += `- **Image**: \`${serviceDef['image'] || ' not specified'}\`\n`;
-					if (serviceDef['ports']) {
-						markdown += `- **Ports**: \`${serviceDef['ports'].join(', ')}\`\n`;
+					const def = serviceDef as Record<string, any>;
+					markdown += `- **Image**: \`${def['image'] || ' not specified'}\`\n`;
+					if (def['ports']) {
+						markdown += `- **Ports**: \`${def['ports'].join(', ')}\`\n`;
 					}
-					if (serviceDef['volumes']) {
-						markdown += `- **Volumes**: \`${serviceDef['volumes'].join(', ')}\`\n`;
+					if (def['volumes']) {
+						markdown += `- **Volumes**: \`${def['volumes'].join(', ')}\`\n`;
 					}
 					markdown += '\n';
 				}
