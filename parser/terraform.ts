@@ -1,6 +1,7 @@
 // ==============================
-// TerraformParser.ts - Parsing des fichiers Terraform
+// TerraformParser.ts - Terraform file parser with contextual documentation
 // ==============================
+
 import { App, TFile } from 'obsidian';
 
 export class TerraformParser {
@@ -17,7 +18,7 @@ export class TerraformParser {
 
 		try {
 			let markdown = `# 🌍 Terraform Summary\n\n`;
-			markdown += `**File :** \`${file.path}\`\n\n`;
+			markdown += `**File:** \`${file.path}\`\n\n`;
 
 			const blockRegex = /(resource|provider|variable|output|module)\s+"([\w-]+)"(?:\s+"([\w-]+)")?\s*{([\s\S]*?)}/g;
 			let match;
@@ -25,11 +26,32 @@ export class TerraformParser {
 
 			while ((match = blockRegex.exec(content)) !== null) {
 				found = true;
-				// eslint-disable-next-line @typescript-eslint/no-unused-vars
 				const [_, type, name, subname, body] = match;
 
-				markdown += `## ${type.charAt(0).toUpperCase() + type.slice(1)}: \`${name}${subname ? ` - ${subname}` : ''}\`\n`;
-				markdown += '```hcl\n' + body.trim() + '\n```\n\n';
+				const blockTitle = `## ${type.charAt(0).toUpperCase() + type.slice(1)}: \`${name}${subname ? ` - ${subname}` : ''}\``;
+				const codeBlock = '```hcl\n' + body.trim() + '\n```\n';
+
+				// Add a contextual description
+				let context = '';
+				switch (type) {
+					case 'provider':
+						context = '> **Provider** defines which cloud or service platform Terraform interacts with (e.g. AWS, Azure, etc.).\n';
+						break;
+					case 'resource':
+						context = '> **Resource** describes an infrastructure object, such as an instance, database, or load balancer.\n';
+						break;
+					case 'variable':
+						context = '> **Variable** allows you to parameterize Terraform modules to make configurations reusable and dynamic.\n';
+						break;
+					case 'output':
+						context = '> **Output** exposes information after Terraform apply, useful for debugging or referencing in other modules.\n';
+						break;
+					case 'module':
+						context = '> **Module** is a container for multiple resources that can be reused across projects.\n';
+						break;
+				}
+
+				markdown += `${blockTitle}\n${context}\n${codeBlock}\n`;
 			}
 
 			if (!found) {
@@ -38,10 +60,15 @@ export class TerraformParser {
 
 			const outputPath = `Parsed/Terraform/${file.basename}.md`;
 			await this.ensureFolderExists("Parsed/Terraform");
-			await this.app.vault.create(outputPath, markdown);
-			console.log(` Terraform file parsed and saved to: ${outputPath}`);
+			const existing = this.app.vault.getAbstractFileByPath(outputPath);
+			if (existing instanceof TFile) {
+				await this.app.vault.modify(existing, markdown);
+			} else {
+				await this.app.vault.create(outputPath, markdown);
+			}
+			console.log(`✅ Terraform file parsed and saved to: ${outputPath}`);
 		} catch (error) {
-			console.error('Terraform parsing error :', error);
+			console.error('❌ Terraform parsing error:', error);
 		}
 	}
 
