@@ -1,7 +1,7 @@
 // ==============================
 // DevOpsSettings.ts - Plugin parameters
 // ==============================
-import {normalizePath, Notice, PluginSettingTab, Setting, TFolder} from "obsidian";
+import { Notice, PluginSettingTab, Setting, TFolder} from "obsidian";
 import DevOpsCompanionPlugin from "./main";
 
 export interface DevOpsSettings {
@@ -118,7 +118,7 @@ export class DevOpsSettingsTab extends PluginSettingTab {
 			const files = Array.from(input.files || []);
 			if (files.length === 0) return;
 
-			const targetFolder = normalizePath("DevOpsImports");
+			const targetFolder = this.plugin.settings.scanPath;
 			const folder = this.app.vault.getAbstractFileByPath(targetFolder) instanceof TFolder;
 
 			if (!folder) {

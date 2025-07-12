@@ -2,6 +2,8 @@ import { App, TFile, TFolder } from "obsidian";
 import { DockerParser } from "./parser/docker";
 import { TerraformParser } from "./parser/terraform";
 import { DevOpsSettings } from "./settings";
+import {KubernetesParser} from "./parser/KubernetesParser";
+import {AnsibleParser} from "./parser/AnsibleParser";
 
 export class Watcher {
 	private app: App;
@@ -57,10 +59,20 @@ export class Watcher {
 		console.log(` Modified file : ${file.path}`);
 
 		const ext = file.extension;
-		if ((ext === "yml" || ext === "yaml") && this.settings.enableDocker) {
-			await new DockerParser(this.app, this.settings).parseFile(file);
-		} else if (ext === "tf" && this.settings.enableTerraform) {
-			await new TerraformParser(this.app, this.settings).parseFile(file);
+		const name = file.name.toLowerCase();
+		let parser = null;
+
+		if (ext === 'tf') parser = new TerraformParser(this.app, this.settings);
+		else if (name === 'dockerfile') parser = new DockerParser(this.app, this.settings);
+		else if (name.endsWith('.yaml') || name.endsWith('.yml')) {
+			if (name.includes('kube')) parser = new KubernetesParser(this.app, this.settings);
+			else if (name.includes('ansible')) parser = new AnsibleParser(this.app, this.settings);
+		}
+
+		if (parser) {
+			await parser.parseFile(file);
+		} else {
+			console.warn(`No parser found for file: ${file.path}`);
 		}
 	}
 }
