@@ -1,7 +1,7 @@
 // ==============================
 // DevOpsSettings.ts - Plugin parameters
 // ==============================
-import {normalizePath, Notice, PluginSettingTab, Setting, TFolder} from "obsidian";
+import {Notice, PluginSettingTab, Setting, TFolder} from "obsidian";
 import DevOpsCompanionPlugin from "./main";
 
 export interface DevOpsSettings {
@@ -35,8 +35,7 @@ export class DevOpsSettingsTab extends PluginSettingTab {
 		const { containerEl } = this;
 		containerEl.empty();
 
-		containerEl.createEl('h2', { text: 'DevOps Companion Settings' });
-
+		new Setting(containerEl).setName('DevOps Companion settings').setHeading();
 		new Setting(containerEl)
 			.setName("Path of folder to be scanned")
 			.setDesc("Specifies the vault subfolder where DevOps files (YML, TF) are to be retrieved.")
@@ -59,7 +58,7 @@ export class DevOpsSettingsTab extends PluginSettingTab {
 			);
 
 		new Setting(containerEl)
-			.setName('Enable Docker Parsing')
+			.setName('Enable Docker parsing')
 			.setDesc('Enable or disable Docker Compose file parsing.')
 			.addToggle((toggle) =>
 				toggle
@@ -71,7 +70,7 @@ export class DevOpsSettingsTab extends PluginSettingTab {
 			);
 
 		new Setting(containerEl)
-			.setName('Enable Terraform Parsing')
+			.setName('Enable Terraform parsing')
 			.setDesc('Enable or disable Terraform file parsing.')
 			.addToggle((toggle) =>
 				toggle
@@ -83,7 +82,7 @@ export class DevOpsSettingsTab extends PluginSettingTab {
 			);
 
 		new Setting(containerEl)
-			.setName('Docker Output Path')
+			.setName('Docker output path')
 			.setDesc('Directory for Docker markdown summaries.')
 			.addText((text) =>
 				text
@@ -96,7 +95,7 @@ export class DevOpsSettingsTab extends PluginSettingTab {
 			);
 
 		new Setting(containerEl)
-			.setName('Terraform Output Path')
+			.setName('Terraform output path')
 			.setDesc('Directory for Terraform markdown summaries.')
 			.addText((text) =>
 				text
@@ -118,7 +117,7 @@ export class DevOpsSettingsTab extends PluginSettingTab {
 			const files = Array.from(input.files || []);
 			if (files.length === 0) return;
 
-			const targetFolder = normalizePath("DevOpsImports");
+			const targetFolder = this.plugin.settings.scanPath;
 			const folder = this.app.vault.getAbstractFileByPath(targetFolder) instanceof TFolder;
 
 			if (!folder) {

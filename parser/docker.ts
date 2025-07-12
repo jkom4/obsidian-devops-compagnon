@@ -1,5 +1,5 @@
-import { App, TFile } from 'obsidian';
-import { load as parseYaml } from 'js-yaml';
+import {App, parseYaml, TFile} from 'obsidian';
+
 
 export class DockerParser {
 	app: App;
@@ -9,6 +9,7 @@ export class DockerParser {
 		this.app = app;
 		this.settings = settings;
 	}
+
 
 	async parseFile(file: TFile) {
 		const content = await this.app.vault.read(file);

@@ -1,6 +1,6 @@
 {
-	"id": "devops-compagnon",
-	"name": "Devops Compagnon",
+	"id": "devops-companion",
+	"name": "DevOps Companion",
 	"version": "0.10.0",
 	"minAppVersion": "1.5.8",
 	"description": "Document infrastructure as clearly as you build it.",

@@ -13,7 +13,6 @@ export default class DevOpsCompanionPlugin extends Plugin {
 	watcher: Watcher;
 
 	async onload() {
-		console.log('DevOps Companion Plugin loaded.');
 
 		// Load settings and settings tab
 		await this.loadSettings();
@@ -26,7 +25,7 @@ export default class DevOpsCompanionPlugin extends Plugin {
 		// Manual scan command
 		this.addCommand({
 			id: 'scan-devops-file',
-			name: 'Manually Scan DevOps Files',
+			name: 'Manually scan DevOps files',
 			callback: async () => {
 				const files = this.app.vault.getFiles();
 				for (const file of files) {
