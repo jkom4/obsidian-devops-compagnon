@@ -1,5 +1,6 @@
-import {App, parseYaml, TFile} from 'obsidian';
 
+import { App, TFile } from "obsidian";
+import { load as parseYaml } from "js-yaml";
 
 export class DockerParser {
 	app: App;
@@ -10,47 +11,41 @@ export class DockerParser {
 		this.settings = settings;
 	}
 
-
-	async parseFile(file: TFile) {
+	async parseFile(file: TFile): Promise<string> {
 		const content = await this.app.vault.read(file);
+		let markdown = `# 🐳 Docker Compose Summary\n\n**File:** \`${file.path}\`\n\n`;
 
 		try {
 			const data = parseYaml(content) as any;
-
-			let markdown = `# 🐳 Docker Compose Summary\n\n`;
-			markdown += `**File :** \`${file.path}\`\n\n`;
-
 			if (!data.services) {
-				markdown += `⚠️ No services detected in this file.\n`;
-			} else {
-				for (const [serviceName, serviceDef] of Object.entries(data.services)) {
-					markdown += `## Service: \`${serviceName}\`\n`;
-					const def = serviceDef as Record<string, any>;
-					markdown += `- **Image**: \`${def['image'] || ' not specified'}\`\n`;
-					if (def['ports']) {
-						markdown += `- **Ports**: \`${def['ports'].join(', ')}\`\n`;
-					}
-					if (def['volumes']) {
-						markdown += `- **Volumes**: \`${def['volumes'].join(', ')}\`\n`;
-					}
-					markdown += '\n';
-				}
+				markdown += "⚠️ No services found in this Docker Compose file.\n";
+				return markdown;
 			}
 
-			const outputPath = `Parsed/Docker/${file.basename}.md`;
-			await this.ensureFolderExists("Parsed/Docker");
-			await this.app.vault.create(outputPath, markdown);
-			console.log(`✅ Docker file parsed and saved to: ${outputPath}`);
+			for (const [serviceName, serviceDef] of Object.entries(data.services)) {
+				const service = serviceDef as any;
+				markdown += `## Service: \`${serviceName}\`\n`;
+				markdown += `- **Image**: \`${service.image || "Not specified"}\`\n`;
 
+				if (service.ports) {
+					markdown += `- **Ports**: \`${service.ports.join(", ")}\`\n`;
+				}
+				if (service.volumes) {
+					markdown += `- **Volumes**: \`${service.volumes.join(", ")}\`\n`;
+				}
+				if (service.environment) {
+					markdown += `- **Environment Variables**:\n`;
+					for (const [key, val] of Object.entries(service.environment)) {
+						markdown += `  - \`${key}\`: ${val}\n`;
+					}
+				}
+
+				markdown += "\n";
+			}
 		} catch (error) {
-			console.error(' Error during Docker parsing:', error);
+			markdown += `❌ Error parsing Docker Compose: ${error}\n`;
 		}
-	}
 
-	private async ensureFolderExists(folderPath: string) {
-		const folder = this.app.vault.getAbstractFileByPath(folderPath);
-		if (!folder) {
-			await this.app.vault.createFolder(folderPath);
-		}
+		return markdown;
 	}
 }
