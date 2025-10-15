@@ -1,24 +1,22 @@
-import { App, TFile, TFolder } from "obsidian";
-import { DockerParser } from "./parser/docker";
-import { TerraformParser } from "./parser/terraform";
-import { DevOpsSettings } from "./settings";
+import {App, Notice, TFile, TFolder} from "obsidian";
+import DevOpsCompanionPlugin from "./main";
 
 export class Watcher {
 	private app: App;
-	private settings: DevOpsSettings;
 	private lastModifiedTimes: Record<string, number> = {};
 	private intervalId: NodeJS.Timeout | null = null;
+	private plugin: DevOpsCompanionPlugin;
 
-	constructor(app: App, settings: DevOpsSettings) {
+	constructor(app: App, plugin: DevOpsCompanionPlugin) {
 		this.app = app;
-		this.settings = settings;
+		this.plugin = plugin;
 	}
 
 	start() {
 		console.log("Watcher started - Scan every 5s");
 
 		this.intervalId = setInterval(async () => {
-			const folderPath = this.settings.scanPath;
+			const folderPath = this.plugin.settings.scanPath;
 
 			if (!folderPath) {
 				console.warn("No scan folder defined in settings.");
@@ -56,11 +54,16 @@ export class Watcher {
 	private async handleFileChange(file: TFile) {
 		console.log(` Modified file : ${file.path}`);
 
-		const ext = file.extension;
-		if ((ext === "yml" || ext === "yaml") && this.settings.enableDocker) {
-			await new DockerParser(this.app, this.settings).parseFile(file);
-		} else if (ext === "tf" && this.settings.enableTerraform) {
-			await new TerraformParser(this.app, this.settings).parseFile(file);
+		try {
+			if (this.plugin.settings.useAIInWatcher && this.plugin.settings.enableAI ) {
+				await this.plugin.processFile(file);
+				new Notice(`🤖 AI updated: ${file.name}`);
+			} else {
+				await this.plugin.processFileLite(file);
+				new Notice(`🔁 Updated local doc for: ${file.name}`);
+			}
+		} catch (err) {
+			console.error(`❌ Error parsing ${file.path}`, err);
 		}
 	}
 }

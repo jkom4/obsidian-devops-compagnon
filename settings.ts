@@ -17,12 +17,15 @@ export interface DevOpsSettings {
 	enableTerraform: boolean;
 	outputPathDocker: string;
 	outputPathTerraform: string;
+	useAIInWatcher: boolean;
+	enableWatcher: boolean;
 }
 
 export const DEFAULT_SETTINGS: DevOpsSettings = {
 	scanPath: 'DevOpsImports',
 	enableDocker: true,
 	enableTerraform: true,
+	enableWatcher: true,
 
 	openAIKey: "",
 	googleAIKey: "",
@@ -30,6 +33,7 @@ export const DEFAULT_SETTINGS: DevOpsSettings = {
 	mistralKey: "",
 
 	enableAI: false,
+	useAIInWatcher: false,
 	preferredProvider: "openai",
 	documentationStyle: "technical",
 	outputPathDocker: 'Parsed/Docker/',
@@ -73,17 +77,99 @@ export class DevOpsSettingsTab extends PluginSettingTab {
 					.onClick(() => this.handleImport())
 			);
 
+		new Setting(containerEl)
+			.setName('Enable Watcher')
+			.setDesc('Watcher scans the defined folder every 5 seconds and updates docs on file changes.')
+			.addToggle((toggle) =>
+				toggle
+					.setValue(this.plugin.settings.enableWatcher)
+					.onChange(async (value) => {
+						this.plugin.settings.enableWatcher = value;
+						await this.plugin.saveSettings();
+
+						if (value) {
+							this.plugin.watcher.start();
+							new Notice(" Watcher enabled");
+						} else {
+							this.plugin.watcher.stop();
+							new Notice(" Watcher disabled");
+						}
+					})
+			);
+		new Setting(containerEl)
+			.setName('Enable Docker parsing')
+			.setDesc('Enable or disable Docker Compose file parsing.')
+			.addToggle((toggle) =>
+				toggle
+					.setValue(this.plugin.settings.enableDocker)
+					.onChange(async (value) => {
+						this.plugin.settings.enableDocker = value;
+						await this.plugin.saveSettings();
+					})
+			);
+
+		new Setting(containerEl)
+			.setName('Enable Terraform parsing')
+			.setDesc('Enable or disable Terraform file parsing.')
+			.addToggle((toggle) =>
+				toggle
+					.setValue(this.plugin.settings.enableTerraform)
+					.onChange(async (value) => {
+						this.plugin.settings.enableTerraform = value;
+						await this.plugin.saveSettings();
+					})
+			);
+
+		new Setting(containerEl)
+			.setName('Docker output path')
+			.setDesc('Directory for Docker markdown summaries.')
+			.addText((text) =>
+				text
+					.setPlaceholder('Parsed/Docker/')
+					.setValue(this.plugin.settings.outputPathDocker)
+					.onChange(async (value) => {
+						this.plugin.settings.outputPathDocker = value || 'Parsed/Docker/';
+						await this.plugin.saveSettings();
+					})
+			);
+
+		new Setting(containerEl)
+			.setName('Terraform output path')
+			.setDesc('Directory for Terraform markdown summaries.')
+			.addText((text) =>
+				text
+					.setPlaceholder('Parsed/Terraform/')
+					.setValue(this.plugin.settings.outputPathTerraform)
+					.onChange(async (value) => {
+						this.plugin.settings.outputPathTerraform = value || 'Parsed/Terraform/';
+						await this.plugin.saveSettings();
+					})
+			);
 
 		containerEl.createEl("h2", { text: " AI Configuration" });
 		new Setting(containerEl)
 			.setName("Enable AI Mode")
-			.setDesc("If enabled, documentation will be enriched by AI.")
+			.setDesc("If enabled, documentation will be enriched by AI.(It can take time (10s) and consume API credits)")
+			.setTooltip("⚠️ Use AI only if you have a valid API key and want enhanced documentation.")
 			.addToggle((toggle) =>
 				toggle
 					.setValue(this.plugin.settings.enableAI)
 					.onChange(async (value) => {
 						this.plugin.settings.enableAI = value;
 						await this.plugin.saveSettings();
+					})
+			);
+
+		new Setting(containerEl)
+			.setName("Use AI in Watcher")
+			.setDesc("If enabled, the watcher will also use AI to enhance documentation when files change. ⚠️ May cause API spam.")
+			.addToggle(toggle =>
+				toggle
+					.setValue(this.plugin.settings.useAIInWatcher)
+					.onChange(async (value) => {
+						this.plugin.settings.useAIInWatcher = value;
+						await this.plugin.saveSettings();
+						new Notice(`Watcher AI mode ${value ? "enabled" : "disabled"}`);
 					})
 			);
 
@@ -233,55 +319,8 @@ export class DevOpsSettingsTab extends PluginSettingTab {
 						await this.plugin.saveSettings();
 					})
 			);
-		new Setting(containerEl)
-			.setName('Enable Docker parsing')
-			.setDesc('Enable or disable Docker Compose file parsing.')
-			.addToggle((toggle) =>
-				toggle
-					.setValue(this.plugin.settings.enableDocker)
-					.onChange(async (value) => {
-						this.plugin.settings.enableDocker = value;
-						await this.plugin.saveSettings();
-					})
-			);
 
-		new Setting(containerEl)
-			.setName('Enable Terraform parsing')
-			.setDesc('Enable or disable Terraform file parsing.')
-			.addToggle((toggle) =>
-				toggle
-					.setValue(this.plugin.settings.enableTerraform)
-					.onChange(async (value) => {
-						this.plugin.settings.enableTerraform = value;
-						await this.plugin.saveSettings();
-					})
-			);
 
-		new Setting(containerEl)
-			.setName('Docker output path')
-			.setDesc('Directory for Docker markdown summaries.')
-			.addText((text) =>
-				text
-					.setPlaceholder('Parsed/Docker/')
-					.setValue(this.plugin.settings.outputPathDocker)
-					.onChange(async (value) => {
-						this.plugin.settings.outputPathDocker = value || 'Parsed/Docker/';
-						await this.plugin.saveSettings();
-					})
-			);
-
-		new Setting(containerEl)
-			.setName('Terraform output path')
-			.setDesc('Directory for Terraform markdown summaries.')
-			.addText((text) =>
-				text
-					.setPlaceholder('Parsed/Terraform/')
-					.setValue(this.plugin.settings.outputPathTerraform)
-					.onChange(async (value) => {
-						this.plugin.settings.outputPathTerraform = value || 'Parsed/Terraform/';
-						await this.plugin.saveSettings();
-					})
-			);
 
 	}
 	async handleImport() {
