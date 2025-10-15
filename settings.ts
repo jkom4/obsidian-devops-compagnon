@@ -17,12 +17,15 @@ export interface DevOpsSettings {
 	enableTerraform: boolean;
 	outputPathDocker: string;
 	outputPathTerraform: string;
+	useAIInWatcher: boolean;
+	enableWatcher: boolean;
 }
 
 export const DEFAULT_SETTINGS: DevOpsSettings = {
 	scanPath: 'DevOpsImports',
 	enableDocker: true,
 	enableTerraform: true,
+	enableWatcher: true,
 
 	openAIKey: "",
 	googleAIKey: "",
@@ -30,15 +33,13 @@ export const DEFAULT_SETTINGS: DevOpsSettings = {
 	mistralKey: "",
 
 	enableAI: false,
+	useAIInWatcher: false,
 	preferredProvider: "openai",
 	documentationStyle: "technical",
 	outputPathDocker: 'Parsed/Docker/',
 	outputPathTerraform: 'Parsed/Terraform/',
 };
 
-// ==============================
-// DevOpsSettingsTab.ts - configuration pannel
-// ==============================
 export class DevOpsSettingsTab extends PluginSettingTab {
 	plugin: DevOpsCompanionPlugin;
 
@@ -234,6 +235,25 @@ export class DevOpsSettingsTab extends PluginSettingTab {
 					})
 			);
 		new Setting(containerEl)
+			.setName('Enable Watcher')
+			.setDesc('Watcher scans the defined folder every 5 seconds and updates docs on file changes.')
+			.addToggle((toggle) =>
+				toggle
+					.setValue(this.plugin.settings.enableWatcher)
+					.onChange(async (value) => {
+						this.plugin.settings.enableWatcher = value;
+						await this.plugin.saveSettings();
+
+						if (value) {
+							this.plugin.watcher.start();
+							new Notice(" Watcher enabled");
+						} else {
+							this.plugin.watcher.stop();
+							new Notice(" Watcher disabled");
+						}
+					})
+			);
+		new Setting(containerEl)
 			.setName('Enable Docker parsing')
 			.setDesc('Enable or disable Docker Compose file parsing.')
 			.addToggle((toggle) =>
@@ -282,6 +302,182 @@ export class DevOpsSettingsTab extends PluginSettingTab {
 						await this.plugin.saveSettings();
 					})
 			);
+
+		containerEl.createEl("h2", { text: " AI Configuration" });
+		new Setting(containerEl)
+			.setName("Enable AI Mode")
+			.setDesc("If enabled, documentation will be enriched by AI.(It can take time (10s) and consume API credits)")
+			.setTooltip("⚠️ Use AI only if you have a valid API key and want enhanced documentation.")
+			.addToggle((toggle) =>
+				toggle
+					.setValue(this.plugin.settings.enableAI)
+					.onChange(async (value) => {
+						this.plugin.settings.enableAI = value;
+						await this.plugin.saveSettings();
+					})
+			);
+
+		new Setting(containerEl)
+			.setName("Use AI in Watcher")
+			.setDesc("If enabled, the watcher will also use AI to enhance documentation when files change. ⚠️ May cause API spam.")
+			.addToggle(toggle =>
+				toggle
+					.setValue(this.plugin.settings.useAIInWatcher)
+					.onChange(async (value) => {
+						this.plugin.settings.useAIInWatcher = value;
+						await this.plugin.saveSettings();
+						new Notice(`Watcher AI mode ${value ? "enabled" : "disabled"}`);
+					})
+			);
+
+		new Setting(containerEl)
+			.setName("Preferred AI Provider")
+			.setDesc("Choose which AI provider to use for documentation enhancement.")
+			.addDropdown(dropdown =>
+				dropdown
+					.addOption("openai", "OpenAI")
+					.addOption("google", "Google AI Studio")
+					.addOption("claude", "Claude (Anthropic)")
+					.addOption("mistral", "Mistral AI")
+					.setValue(this.plugin.settings.preferredProvider)
+					.onChange(async (value) => {
+						this.plugin.settings.preferredProvider = value;
+						await this.plugin.saveSettings();
+					})
+			);
+
+		containerEl.createEl("h2", { text: " API Keys" });
+
+		new Setting(containerEl)
+			.setName("OpenAI API Key")
+			.setDesc("Enter your personal OpenAI key (sk-...)")
+			.addText(text =>
+				text
+					.setPlaceholder("sk-...")
+					.setValue(this.plugin.settings.openAIKey)
+					.onChange(async (value) => {
+						this.plugin.settings.openAIKey = value.trim();
+						await this.plugin.saveSettings();
+					})
+			);
+
+		new Setting(containerEl)
+			.setName("Google AI Studio Key")
+			.setDesc("Enter your Google AI Studio key.")
+			.addText(text =>
+				text
+					.setPlaceholder("AIza...")
+					.setValue(this.plugin.settings.googleAIKey)
+					.onChange(async (value) => {
+						this.plugin.settings.googleAIKey = value.trim();
+						await this.plugin.saveSettings();
+					})
+			);
+
+		new Setting(containerEl)
+			.setName("Claude (Anthropic) Key")
+			.setDesc("Enter your Claude (Anthropic) API key.")
+			.addText(text =>
+				text
+					.setPlaceholder("sk-ant-...")
+					.setValue(this.plugin.settings.claudeKey)
+					.onChange(async (value) => {
+						this.plugin.settings.claudeKey = value.trim();
+						await this.plugin.saveSettings();
+					})
+			);
+
+		new Setting(containerEl)
+			.setName("Mistral AI Key")
+			.setDesc("Enter your Mistral AI API key.")
+			.addText(text =>
+				text
+					.setPlaceholder("mistral-...")
+					.setValue(this.plugin.settings.mistralKey)
+					.onChange(async (value) => {
+						this.plugin.settings.mistralKey = value.trim();
+						await this.plugin.saveSettings();
+					})
+			);
+
+		new Setting(containerEl)
+			.setName("Test AI Connection")
+			.setDesc("Verify that the API key for the selected provider is valid.")
+			.addButton((btn) => {
+				btn.setButtonText("🧪 Test Connection")
+					.setCta()
+					.onClick(async () => {
+						const provider = this.plugin.settings.preferredProvider;
+						let key = "";
+						let testUrl = "";
+						let headers: Record<string, string> = {};
+						//let query = "";
+
+						switch (provider) {
+							case "openai":
+								key = this.plugin.settings.openAIKey;
+								testUrl = "https://api.openai.com/v1/models";
+								headers = { "Authorization": `Bearer ${key}` };
+								break;
+							case "google":
+								key = this.plugin.settings.googleAIKey;
+								testUrl = `https://generativelanguage.googleapis.com/v1beta/models?key=${key}`;
+								break;
+							case "anthropic":
+								key = this.plugin.settings.claudeKey;
+								testUrl = "https://api.anthropic.com/v1/models";
+								headers = { "x-api-key": key };
+								break;
+							case "mistral":
+								key = this.plugin.settings.mistralKey;
+								testUrl = "https://api.mistral.ai/v1/models";
+								headers = { "Authorization": `Bearer ${key}` };
+								break;
+							default:
+								new Notice("⚠️ No provider selected.");
+								return;
+						}
+
+						if (!key) {
+							new Notice(`⚠️ No API key set for ${provider}.`);
+							return;
+						}
+
+						new Notice(`Testing ${provider} connection...`);
+
+						try {
+							const res = await fetch(testUrl, { headers });
+							if (res.ok) {
+								new Notice(`✅ ${provider} key is valid!`);
+							} else {
+								const err = await res.text();
+								console.info(`❌ ${provider} failed:`, err);
+								new Notice(`❌ Invalid ${provider} API key or rate limit reached.`);
+							}
+						} catch (e) {
+							console.info(e);
+							new Notice(`❌ Connection test failed for ${provider}.`);
+						}
+					});
+			});
+
+		containerEl.createEl("h2", { text: "Documentation Style" });
+		new Setting(containerEl)
+			.setName("Documentation Style")
+			.setDesc("Select how the AI should format and tone the documentation.")
+			.addDropdown((dropdown) =>
+				dropdown
+					.addOption("technical", "Technical")
+					.addOption("educational", "Educational")
+					.addOption("executive", "Executive Summary")
+					.setValue(this.plugin.settings.documentationStyle)
+					.onChange(async (value: any) => {
+						this.plugin.settings.documentationStyle = value;
+						await this.plugin.saveSettings();
+					})
+			);
+
+
 
 	}
 	async handleImport() {

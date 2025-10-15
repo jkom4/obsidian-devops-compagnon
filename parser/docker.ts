@@ -1,4 +1,3 @@
-
 import { App, TFile } from "obsidian";
 import { load as parseYaml } from "js-yaml";
 
@@ -13,28 +12,60 @@ export class DockerParser {
 
 	async parseFile(file: TFile): Promise<string> {
 		const content = await this.app.vault.read(file);
-		let markdown = `# 🐳 Docker Compose Summary\n\n**File:** \`${file.path}\`\n\n`;
+		let markdown = `# 🐳 Docker Compose Overview\n\n`;
+		markdown += `**File:** \`${file.path}\`\n\n`;
+		markdown += `This document provides a structured and educational overview of your Docker Compose configuration. Each section below explains what the configuration element does and summarizes its key parameters.\n\n`;
 
 		try {
 			const data = parseYaml(content) as any;
 			if (!data.services) {
-				markdown += "⚠️ No services found in this Docker Compose file.\n";
+				markdown += "⚠️ No services were detected in this Docker Compose file.\n";
 				return markdown;
 			}
 
+			// Global-level information
+			if (data.version) {
+				markdown += `## 🧾 Compose File Version\n`;
+				markdown += `The \`version\` field defines the **Docker Compose schema** version used. It affects which keys and syntax are available.\n\n`;
+				markdown += `- **Version:** \`${data.version}\`\n\n`;
+			}
+
+			// Services Section
+			markdown += `## 🧩 Services\n`;
+			markdown += `Services are individual containers that make up your application. Each service can specify an image, ports, volumes, dependencies, and environment variables.\n\n`;
+
 			for (const [serviceName, serviceDef] of Object.entries(data.services)) {
 				const service = serviceDef as any;
-				markdown += `## Service: \`${serviceName}\`\n`;
-				markdown += `- **Image**: \`${service.image || "Not specified"}\`\n`;
+				markdown += `### 🔹 Service: \`${serviceName}\`\n`;
 
-				if (service.ports) {
-					markdown += `- **Ports**: \`${service.ports.join(", ")}\`\n`;
+				if (service.image)
+					markdown += `- **Image:** \`${service.image}\` — the base container image for this service.\n`;
+				if (service.build) {
+					markdown += `- **Build Context:** \`${typeof service.build === "string" ? service.build : service.build.context}\` — the directory containing the Dockerfile used to build this service.\n`;
+					if (service.build.args) {
+						markdown += `- **Build Args:** arguments passed to the Docker build process.\n`;
+						for (const [arg, value] of Object.entries(service.build.args)) {
+							markdown += `  - \`${arg}\`: ${value}\n`;
+						}
+					}
 				}
-				if (service.volumes) {
-					markdown += `- **Volumes**: \`${service.volumes.join(", ")}\`\n`;
-				}
+				if (service.command)
+					markdown += `- **Command:** \`${Array.isArray(service.command) ? service.command.join(" ") : service.command}\` — overrides the default command defined in the image.\n`;
+				if (service.container_name)
+					markdown += `- **Container Name:** \`${service.container_name}\`\n`;
+				if (service.restart)
+					markdown += `- **Restart Policy:** \`${service.restart}\` — defines how Docker handles container restarts.\n`;
+				if (service.depends_on)
+					markdown += `- **Depends On:** \`${service.depends_on.join(", ")}\` — specifies startup order dependencies between services.\n`;
+				if (service.networks)
+					markdown += `- **Networks:** \`${Array.isArray(service.networks) ? service.networks.join(", ") : Object.keys(service.networks).join(", ")}\` — networks to which this service is attached.\n`;
+				if (service.ports)
+					markdown += `- **Ports:** \`${service.ports.join(", ")}\` — maps container ports to host ports.\n`;
+				if (service.volumes)
+					markdown += `- **Volumes:** \`${service.volumes.join(", ")}\` — mount points for persistent or shared data.\n`;
+
 				if (service.environment) {
-					markdown += `- **Environment Variables**:\n`;
+					markdown += `- **Environment Variables:** key-value pairs that configure the runtime environment of the container.\n`;
 					for (const [key, val] of Object.entries(service.environment)) {
 						markdown += `  - \`${key}\`: ${val}\n`;
 					}
@@ -42,8 +73,41 @@ export class DockerParser {
 
 				markdown += "\n";
 			}
+
+			// Networks Section
+			if (data.networks) {
+				markdown += `## 🌐 Networks\n`;
+				markdown += `Networks define how services communicate with each other. You can use default bridges or custom drivers to isolate or connect services.\n\n`;
+
+				for (const [netName, netDef] of Object.entries(data.networks)) {
+					const net = netDef as any;
+					markdown += `- **Network:** \`${netName}\`\n`;
+					if (net.driver)
+						markdown += `  - **Driver:** \`${net.driver}\` — specifies the network type (e.g., bridge, overlay).\n`;
+					if (net.external)
+						markdown += `  - **External:** \`${net.external}\` — indicates if the network is managed outside the Compose project.\n`;
+				}
+				markdown += "\n";
+			}
+
+			// Volumes Section
+			if (data.volumes) {
+				markdown += `## 💾 Volumes\n`;
+				markdown += `Volumes store data persistently, even when containers are removed. They can be shared between services or managed externally.\n\n`;
+
+				for (const [volName, volDef] of Object.entries(data.volumes)) {
+					const vol = volDef as any;
+					markdown += `- **Volume:** \`${volName}\`\n`;
+				}
+				markdown += "\n";
+			}
+
+			markdown += `---\n📝 *This documentation was automatically generated by DevOps Companion.*\n`;
+
+				markdown += "\n";
+			}
 		} catch (error) {
-			markdown += `❌ Error parsing Docker Compose: ${error}\n`;
+			markdown += `❌ **Error while parsing Docker Compose file:** ${error}\n`;
 		}
 
 		return markdown;
