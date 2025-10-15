@@ -47,8 +47,7 @@ export default class DevOpsCompanionPlugin extends Plugin {
 
 				for (const file of files) {
 					await this.processFile(file);
-					// optional small delay to reduce AI rate-limit risk:
-					// await new Promise(res => setTimeout(res, 200));
+
 				}
 
 				new Notice("✅ Manual scan completed.");
