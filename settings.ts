@@ -25,7 +25,7 @@ export const DEFAULT_SETTINGS: DevOpsSettings = {
 	scanPath: 'DevOpsImports',
 	enableDocker: true,
 	enableTerraform: true,
-	enableWatcher: true,
+	enableWatcher: false,
 
 	openAIKey: "",
 	googleAIKey: "",
